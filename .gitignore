@@ -1,0 +1,24 @@
+# Sistema operativo macOS
+.DS_Store
+__MACOSX/
+
+# Archivos de sistema Windows
+Thumbs.db
+
+# Configuración de IDEs (PhpStorm, IntelliJ, VSCode, etc.)
+.idea/
+.vscode/
+
+# Logs o archivos temporales
+*.log
+*.cache
+
+# Dependencias con Composer (si en algún momento decides usarlo)
+vendor/
+composer.lock
+
+# Dependencias con Node.js (si llegas a compilar assets)
+node_modules/
+
+# Archivos de entorno (si los usas para credenciales o configuraciones locales)
+.env
