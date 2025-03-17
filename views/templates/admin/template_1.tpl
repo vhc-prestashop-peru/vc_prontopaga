@@ -35,3 +35,24 @@
 		</div>
 	</div>
 </div>
+
+
+{if isset($prontopaga_methods) && $prontopaga_methods}
+    <div class="panel">
+        <div class="panel-heading">
+            <i class="icon-list-ul"></i> {l s='Available Payment Methods' mod='vc_prontopaga'}
+        </div>
+        <div class="panel-body">
+            <ul>
+            {foreach $prontopaga_methods as $method}
+                <li style="margin: 15px 0;">
+                    <input type="checkbox" name="prontopaga_methods[{$method.id}]" value="1" style="margin-right: 8px;" />
+                    <img src="{$method.logo}" alt="{$method.name}" style="height: 60px; vertical-align: middle; margin-right: 8px;">
+                    <strong>{$method.name}</strong>
+                    <span style="color: #888;">({$method.method}, {$method.currency})</span>
+                </li>
+            {/foreach}
+            </ul>
+        </div>
+    </div>
+{/if}

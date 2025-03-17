@@ -25,8 +25,8 @@ namespace ProntoPago;
 
 class ProntoPagoApiManager
 {
-    private const API_URL_SANDBOX    = 'https://sandbox.insospa.com';
-    private const API_URL_PRODUCTION = 'https://nsospa.com';
+    private const API_URL_SANDBOX    = 'https://sandbox.prontopaga.com';
+    private const API_URL_PRODUCTION = 'https://prontopaga.com';
 
     private $baseUri;
     private $token;

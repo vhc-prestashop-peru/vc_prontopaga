@@ -105,6 +105,16 @@ class Vc_prontopaga extends PaymentModule
             $this->postProcess();
         }
 
+        // Llamar al servicio para obtener métodos de pago
+        $methods = $this->callPaymentMethods();
+        if ($methods !== false) {
+            // Asignar a Smarty para mostrarlos en la plantilla
+            $this->context->smarty->assign('prontopaga_methods', $methods);
+        } else {
+            // Mostrar un error en caso de que no se puedan obtener
+            $this->context->controller->errors[] = $this->l('No se pudieron obtener los métodos de pago.');
+        }
+    
         $this->context->smarty->assign('module_dir', $this->_path);
 
         $output = $this->context->smarty->fetch($this->local_path.'views/templates/admin/configure.tpl');
@@ -254,6 +264,13 @@ class Vc_prontopaga extends PaymentModule
         }
         Configuration::updateValue('VC_PRONTOPAGA_SUPPORTED_CURRENCIES', implode(',', $selectedCurrencies));
         
+
+        $methods = $this->callPaymentMethods();
+    
+        if ($methods === false) {
+            $this->context->controller->errors[] = $this->l('No se pudieron obtener los métodos de pago.');
+        }
+        
         $this->context->controller->confirmations[] = $this->l('Configuración actualizada.');
     }
 
@@ -329,17 +346,6 @@ class Vc_prontopaga extends PaymentModule
     }
     
     /**
-     * Returns the API base URL depending on the live mode configuration.
-     *
-     * @return string
-     */
-    public function getApiUrl()
-    {
-        $liveMode = Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
-        return ProntoPagoHelper::getApiUrl($liveMode);
-    }
-    
-    /**
      * Generate signature using helper method.
      *
      * @param array $data
@@ -350,5 +356,22 @@ class Vc_prontopaga extends PaymentModule
     {
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
         return ProntoPagoHelper::generateSignature($data, $secretKey, $concatString);
+    }
+    
+    public function callPaymentMethods()
+    {
+        $liveMode  = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
+        $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
+        $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
+    
+        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
+    
+        $methods = $helper->getPaymentMethods();
+    
+        if ($methods === false) {
+            return false;
+        }
+    
+        return $methods;
     }
 }
