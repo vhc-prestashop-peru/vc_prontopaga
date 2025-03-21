@@ -24,35 +24,19 @@
 *}
 
 <div class="panel">
-	<div class="row vc_prontopaga-header">
-		<img class="col-xs-12 col-md-3 text-center" src="{$module_dir|escape:'html':'UTF-8'}views/img/template_1_logo.jpeg" id="payment-logo" />
-		
-		<div class="col-xs-12 col-md-9 text-right">
-			<a href="https://www.prontopaga.com" target="_blank" class="btn btn-primary" id="create-account-btn">{l s='Create an account now!' mod='vc_prontopaga'}</a><br />
-			<span style="margin-top: 5px; display: inline-block;">
-			{l s='Already have an account?' mod='vc_prontopaga'} <a href="https://www.prontopaga.com/es/login" target="_blank" style="text-decoration-line: underline">{l s='Log in' mod='vc_prontopaga'}</a>
-			</span>
-		</div>
-	</div>
-</div>
+    <div class="row vc_prontopaga-header">
+        <img class="col-xs-12 col-md-3 text-center" src="{$module_dir|escape:'html':'UTF-8'}views/img/template_1_logo.jpeg" id="payment-logo" />
 
-
-{if isset($prontopaga_methods) && $prontopaga_methods}
-    <div class="panel">
-        <div class="panel-heading">
-            <i class="icon-list-ul"></i> {l s='Available Payment Methods' mod='vc_prontopaga'}
-        </div>
-        <div class="panel-body">
-            <ul>
-            {foreach $prontopaga_methods as $method}
-                <li style="margin: 15px 0;">
-                    <input type="checkbox" name="prontopaga_methods[{$method.id}]" value="1" style="margin-right: 8px;" />
-                    <img src="{$method.logo}" alt="{$method.name}" style="height: 60px; vertical-align: middle; margin-right: 8px;">
-                    <strong>{$method.name}</strong>
-                    <span style="color: #888;">({$method.method}, {$method.currency})</span>
-                </li>
-            {/foreach}
-            </ul>
+        <div class="col-xs-12 col-md-9 text-right">
+            <a href="https://www.prontopaga.com" target="_blank" class="btn btn-primary" id="create-account-btn">
+                {l s='Create an account now!' mod='vc_prontopaga'}
+            </a><br />
+            <span style="margin-top: 5px; display: inline-block;">
+                {l s='Already have an account?' mod='vc_prontopaga'}
+                <a href="https://www.prontopaga.com/es/login" target="_blank" style="text-decoration-line: underline">
+                    {l s='Log in' mod='vc_prontopaga'}
+                </a>
+            </span>
         </div>
     </div>
-{/if}
+</div>

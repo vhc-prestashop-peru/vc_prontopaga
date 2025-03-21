@@ -25,23 +25,27 @@
 */
 class Vc_prontopagaRedirectModuleFrontController extends ModuleFrontController
 {
-    /**
-     * Do whatever you have to before redirecting the customer on the website of your payment processor.
-     */
     public function postProcess()
     {
-        /*
-         * Oops, an error occured.
-         */
         if (Tools::getValue('action') == 'error') {
             return $this->displayError('An error occurred while trying to redirect the customer');
         } else {
-            $this->context->smarty->assign(array(
+            $currency = new Currency($this->context->cart->id_currency);
+            $currency_iso = pSQL($currency->iso_code);
+        
+            $methods = Db::getInstance()->executeS(
+                'SELECT * FROM ' . _DB_PREFIX_ . 'vc_prontopaga_methods 
+                 WHERE active = 1 
+                 AND currency = "' . $currency_iso . '"'
+            );
+
+            $this->context->smarty->assign([
                 'cart_id' => Context::getContext()->cart->id,
                 'secure_key' => Context::getContext()->customer->secure_key,
-            ));
+                'payment_methods' => $methods,
+            ]);
 
-            return $this->setTemplate('redirect.tpl');
+            return $this->setTemplate('module:vc_prontopaga/views/templates/front/redirect.tpl');
         }
     }
 
@@ -59,6 +63,6 @@ class Vc_prontopagaRedirectModuleFrontController extends ModuleFrontController
          */
         array_push($this->errors, $this->module->l($message), $description);
 
-        return $this->setTemplate('error.tpl');
+        return $this->setTemplate('module:vc_prontopaga/views/templates/front/error.tpl');
     }
 }

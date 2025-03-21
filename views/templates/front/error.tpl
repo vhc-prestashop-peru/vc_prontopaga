@@ -23,6 +23,10 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
+
+{extends file='page.tpl'}
+
+{block name='page_content'}
 <div>
 	<h3>{l s='An error occurred' mod='vc_prontopaga'}:</h3>
 	<ul class="alert alert-danger">
@@ -31,3 +35,4 @@
 		{/foreach}
 	</ul>
 </div>
+{/block}

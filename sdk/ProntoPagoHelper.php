@@ -17,6 +17,8 @@ namespace ProntoPago;
 
 require_once __DIR__ . '/ProntoPagoApiManager.php';
 
+use Db;
+
 class ProntoPagoHelper
 {
     private $liveMode;
@@ -67,6 +69,35 @@ class ProntoPagoHelper
     {
         $apiManager = $this->getApiManager();
         return $apiManager->request('GET', 'api/payment/methods');
+    }
+    
+    /**
+     * Obtiene los métodos de pago desde la API y los guarda en la BD.
+     *
+     * @return bool true si la actualización fue exitosa, false en caso de error.
+     */
+    public function syncPaymentMethodsToDB()
+    {
+        $methods = $this->getPaymentMethods();
+
+        if (!$methods || !is_array($methods)) {
+            return false;
+        }
+
+        Db::getInstance()->execute('TRUNCATE TABLE `' . _DB_PREFIX_ . 'vc_prontopaga_methods`');
+
+        foreach ($methods as $method) {
+            Db::getInstance()->insert('vc_prontopaga_methods', [
+                'method_id' => (int) $method['id'],
+                'name' => pSQL($method['name']),
+                'method' => pSQL($method['method']),
+                'currency' => pSQL($method['currency']),
+                'logo' => pSQL($method['logo']),
+                'active' => 1,
+            ]);
+        }
+
+        return true;
     }
 
     /**

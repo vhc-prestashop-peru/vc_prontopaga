@@ -23,23 +23,23 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
+{extends file='page.tpl'}
+
+{block name='page_content'}
 <div>
-	<h3>{l s='Redirect your customer' mod='vc_prontopaga'}:</h3>
-	<ul class="alert alert-info">
-			<li>{l s='This action should be used to redirect your customer to the website of your payment processor' mod='vc_prontopaga'}.</li>
-	</ul>
-	
-	<div class="alert alert-warning">
-		{l s='You can redirect your customer with an error message' mod='vc_prontopaga'}:
-		<a href="{$link->getModuleLink('vc_prontopaga', 'redirect', ['action' => 'error'], true)|escape:'htmlall':'UTF-8'}" title="{l s='Look at the error' mod='vc_prontopaga'}">
-			<strong>{l s='Look at the error message' mod='vc_prontopaga'}</strong>
-		</a>
-	</div>
-	
-	<div class="alert alert-success">
-		{l s='You can also redirect your customer to the confirmation page' mod='vc_prontopaga'}:
-		<a href="{$link->getModuleLink('vc_prontopaga', 'confirmation', ['cart_id' => $cart_id, 'secure_key' => $secure_key], true)|escape:'htmlall':'UTF-8'}" title="{l s='Confirm' mod='vc_prontopaga'}">
-			<strong>{l s='Go to the confirmation page' mod='vc_prontopaga'}</strong>
-		</a>
-	</div>
+	<h3>{l s='Available Payment Methods' mod='vc_prontopaga'}</h3>
+    <br><br>
+	{if isset($payment_methods) && $payment_methods}
+		<ul class="list-group">
+			{foreach from=$payment_methods item=method}
+				<li class="list-group-item">
+					<img src="{$method.logo|escape:'htmlall':'UTF-8'}" alt="{$method.name|escape:'htmlall':'UTF-8'}" style="height:80px; margin-right:10px;">
+					<strong>{$method.name|escape:'htmlall':'UTF-8'}</strong>
+				</li>
+			{/foreach}
+		</ul>
+	{else}
+		<p class="alert alert-danger">{l s='No available payment methods. Please contact support.' mod='vc_prontopaga'}</p>
+	{/if}
 </div>
+{/block}

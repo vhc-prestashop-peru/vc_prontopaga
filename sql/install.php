@@ -25,9 +25,15 @@
 */
 $sql = array();
 
-$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga` (
-    `id_vc_prontopaga` int(11) NOT NULL AUTO_INCREMENT,
-    PRIMARY KEY  (`id_vc_prontopaga`)
+$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga_methods` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `method_id` INT(11) NOT NULL,
+    `active` TINYINT(1) NOT NULL DEFAULT 1,
+    `name` CHAR(30) NOT NULL,
+    `method` VARCHAR(50) NOT NULL,
+    `currency` VARCHAR(10) NOT NULL,
+    `logo` VARCHAR(200) NOT NULL,
+    PRIMARY KEY (`id`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 foreach ($sql as $query) {
@@ -35,3 +41,5 @@ foreach ($sql as $query) {
         return false;
     }
 }
+
+return true;

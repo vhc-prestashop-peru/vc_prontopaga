@@ -54,16 +54,14 @@ class Vc_prontopaga extends PaymentModule
 
     public function install()
     {
-        if (extension_loaded('curl') == false)
-        {
+        if (extension_loaded('curl') == false) {
             $this->_errors[] = $this->l('You have to enable the cURL extension on your server to install this module');
             return false;
         }
 
         $iso_code = Country::getIsoById(Configuration::get('PS_COUNTRY_DEFAULT'));
 
-        if (in_array($iso_code, $this->limited_countries) == false)
-        {
+        if (in_array($iso_code, $this->limited_countries) == false) {
             $this->_errors[] = $this->l('This module is not available in your country');
             return false;
         }
@@ -79,6 +77,10 @@ class Vc_prontopaga extends PaymentModule
             Configuration::updateValue($key, $value);
         }
         
+        if (!file_exists(dirname(__FILE__) . '/sql/install.php')) {
+            return false;
+        }
+        require_once dirname(__FILE__) . '/sql/install.php';
 
         return parent::install() &&
             $this->registerHook('displayHeader') &&
@@ -96,6 +98,10 @@ class Vc_prontopaga extends PaymentModule
         Configuration::deleteByName('VC_PRONTOPAGA_ACCOUNT_KEY');
         Configuration::deleteByName('VC_PRONTOPAGA_SUPPORTED_CURRENCIES');
 
+        if (file_exists(dirname(__FILE__) . '/sql/uninstall.php')) {
+            require_once dirname(__FILE__) . '/sql/uninstall.php';
+        }
+    
         return parent::uninstall();
     }
 
@@ -104,22 +110,21 @@ class Vc_prontopaga extends PaymentModule
         if (((bool)Tools::isSubmit('submitVc_prontopagaModule')) == true) {
             $this->postProcess();
         }
-
-        // Llamar al servicio para obtener métodos de pago
-        $methods = $this->callPaymentMethods();
-        if ($methods !== false) {
-            // Asignar a Smarty para mostrarlos en la plantilla
-            $this->context->smarty->assign('prontopaga_methods', $methods);
-        } else {
-            // Mostrar un error en caso de que no se puedan obtener
-            $this->context->controller->errors[] = $this->l('No se pudieron obtener los métodos de pago.');
+        
+        if (Tools::isSubmit('syncPaymentMethods')) {
+            if ($this->syncPaymentMethods()) {
+                $this->context->controller->confirmations[] = $this->l('Payment methods successfully synchronized.');
+            } else {
+                $this->context->controller->errors[] = $this->l('Failed to synchronize payment methods.');
+            }
         }
-    
+
         $this->context->smarty->assign('module_dir', $this->_path);
 
         $output = $this->context->smarty->fetch($this->local_path.'views/templates/admin/configure.tpl');
-    
-        return $output.$this->renderForm();
+        $output .= $this->renderForm();
+        $output .= $this->renderMethodsList();
+        return $output;
     }
 
     protected function renderForm()
@@ -145,6 +150,65 @@ class Vc_prontopaga extends PaymentModule
         );
 
         return $helper->generateForm(array($this->getConfigForm()));
+    }
+    
+    public function renderMethodsList()
+    {
+        $methods = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'vc_prontopaga_methods');
+    
+        if (!$methods || !is_array($methods) || empty($methods)) {
+            return '<div class="alert alert-warning">' . $this->l('No payment methods found in the database. please syncronize') . '</div>';
+        }
+    
+        $fields_list = [
+            'id' => [
+                'title' => $this->l('ID'),
+                'align' => 'center',
+                'class' => 'fixed-width-xs',
+            ],
+            'active' => [
+                'title' => $this->l('Active'),
+                'active' => 'toggle_active',
+                'align' => 'center',
+                'type' => 'bool',
+                'orderby' => false,
+            ],
+            'name' => [
+                'title' => $this->l('Name'),
+            ],
+            'method' => [
+                'title' => $this->l('Method NameCode'),
+            ],
+            'currency' => [
+                'title' => $this->l('Currency'),
+            ],
+            'logo' => [
+                'title' => $this->l('Logo'),
+                'callback' => 'renderLogoColumn',
+                'callback_object' => $this,
+                'orderby' => false,
+                'search' => false,
+            ],
+        ];
+    
+        $helper = new HelperList();
+        $helper->shopLinkType = '';
+        $helper->simple_header = true;
+        $helper->identifier = 'id';
+        $helper->actions = [];
+        $helper->show_toolbar = false;
+        $helper->module = $this;
+        $helper->title = $this->l('Available ProntoPaga Methods');
+        $helper->table = 'vc_prontopaga_methods';
+        $helper->token = Tools::getAdminTokenLite('AdminModules');
+        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+    
+        return $helper->generateList($methods, $fields_list);
+    }
+
+    public function renderLogoColumn($logoUrl, $row)
+    {
+        return '<img src="'.Tools::safeOutput($logoUrl).'" alt="Logo" style="height:50px;" />';
     }
 
     protected function getConfigForm()
@@ -209,6 +273,14 @@ class Vc_prontopaga extends PaymentModule
                 'submit' => [
                     'title' => $this->l('Save settings'),
                 ],
+                'buttons' => [
+                    [
+                        'title' => $this->l('Sync Payment Methods'),
+                        'icon' => 'process-icon-refresh',
+                        'class' => 'btn btn-warning pull-right',
+                        'href' => AdminController::$currentIndex . '&configure=' . $this->name . '&syncPaymentMethods=1&token=' . Tools::getAdminTokenLite('AdminModules'),
+                    ],
+                ]
             ],
         ];
     }
@@ -264,16 +336,9 @@ class Vc_prontopaga extends PaymentModule
         }
         Configuration::updateValue('VC_PRONTOPAGA_SUPPORTED_CURRENCIES', implode(',', $selectedCurrencies));
         
-
-        $methods = $this->callPaymentMethods();
-    
-        if ($methods === false) {
-            $this->context->controller->errors[] = $this->l('No se pudieron obtener los métodos de pago.');
-        }
-        
         $this->context->controller->confirmations[] = $this->l('Configuración actualizada.');
     }
-
+    
     public function hookDisplayBackOfficeHeader()
     {
         if (Tools::getValue('configure') == $this->name) {
@@ -298,7 +363,7 @@ class Vc_prontopaga extends PaymentModule
         }
         $option = new \PrestaShop\PrestaShop\Core\Payment\PaymentOption();
         $option->setCallToActionText($this->l('Pay with ProntoPaga'))
-            ->setAction($this->context->link->getModuleLink($this->name, 'validation', array(), true));
+            ->setAction($this->context->link->getModuleLink($this->name, 'redirect', array(), true));
 
         return [
             $option
@@ -346,7 +411,7 @@ class Vc_prontopaga extends PaymentModule
     }
     
     /**
-     * Generate signature using helper method.
+     * Generate signature using ProntoPagaHelper.
      *
      * @param array $data
      *
@@ -373,5 +438,15 @@ class Vc_prontopaga extends PaymentModule
         }
     
         return $methods;
+    }
+    
+    public function syncPaymentMethods()
+    {
+        $liveMode = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
+        $token = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
+        $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
+    
+        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
+        return $helper->syncPaymentMethodsToDb();
     }
 }
