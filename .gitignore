@@ -22,3 +22,5 @@ node_modules/
 
 # Archivos de entorno (si los usas para credenciales o configuraciones locales)
 .env
+
+logs/*

@@ -1,4 +1,5 @@
-{*
+<?php
+/**
 * 2007-2025 PrestaShop
 *
 * NOTICE OF LICENSE
@@ -21,22 +22,13 @@
 *  @copyright 2007-2025 PrestaShop SA
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
-*}
+*/
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
-<div class="row">
-	<div class="col-xs-12 col-md-6">
-		<p class="payment_module" id="vc_prontopaga_payment_button">
-			{if $cart->getOrderTotal() < 2}
-				<a href="">
-					<img src="{$domain|cat:$payment_button|escape:'html':'UTF-8'}" alt="{l s='Pay with my payment module' mod='vc_prontopaga'}" />
-					{l s='Minimum amount required in order to pay with my payment module:' mod='vc_prontopaga'} {convertPrice price=2}
-				</a>
-			{else}
-				<a href="{$link->getModuleLink('vc_prontopaga', 'redirect', array(), true)|escape:'htmlall':'UTF-8'}" title="{l s='Pay with my payment module' mod='vc_prontopaga'}">
-					<img src="{$module_dir|escape:'htmlall':'UTF-8'}/logo.png" alt="{l s='Pay with my payment module' mod='vc_prontopaga'}" width="32" height="32" />
-					{l s='Pay with my payment module' mod='vc_prontopaga'}
-				</a>
-			{/if}
-		</p>
-	</div>
-</div>
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+
+header('Location: ../');
+exit;

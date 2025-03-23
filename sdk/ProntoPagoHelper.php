@@ -12,12 +12,22 @@
  *  - ProntoPagoApiManager (sin Composer) ya implementado en la misma carpeta o ruta adecuada.
  *
  */
- 
+
 namespace ProntoPago;
 
-require_once __DIR__ . '/ProntoPagoApiManager.php';
-
+use Cart;
+use Customer;
+use Address;
+use Currency;
+use Country;
+use Order;
+use Context;
 use Db;
+use Configuration;
+
+require_once __DIR__ . '/ProntoPagoConfig.php';
+require_once __DIR__ . '/ProntoPagoLogger.php';
+require_once __DIR__ . '/ProntoPagoApiManager.php';
 
 class ProntoPagoHelper
 {
@@ -25,13 +35,6 @@ class ProntoPagoHelper
     private $token;
     private $secretKey;
 
-    /**
-     * Constructor.
-     *
-     * @param bool   $liveMode  Modo producción (true) o sandbox (false).
-     * @param string $token     Token de autenticación (Bearer).
-     * @param string $secretKey Clave secreta para HMAC.
-     */
     public function __construct($liveMode, $token, $secretKey)
     {
         $this->liveMode  = $liveMode;
@@ -39,48 +42,29 @@ class ProntoPagoHelper
         $this->secretKey = $secretKey;
     }
 
-    /**
-     * Crea una nueva instancia de ProntoPagoApiManager cada vez que se llama.
-     *
-     * @return ProntoPagoApiManager
-     */
     private function getApiManager()
     {
         return new ProntoPagoApiManager($this->liveMode, $this->token);
     }
 
-    /**
-     * Llama a GET /api/balance para obtener el balance de la cuenta.
-     *
-     * @return array|false Array asociativo o false si ocurre un error.
-     */
     public function getBalance()
     {
         $apiManager = $this->getApiManager();
         return $apiManager->request('GET', 'api/balance');
     }
 
-    /**
-     * Llama a GET /api/payment/methods para obtener métodos de pago disponibles.
-     *
-     * @return array|false Array asociativo o false si ocurre un error.
-     */
     public function getPaymentMethods()
     {
         $apiManager = $this->getApiManager();
         return $apiManager->request('GET', 'api/payment/methods');
     }
-    
-    /**
-     * Obtiene los métodos de pago desde la API y los guarda en la BD.
-     *
-     * @return bool true si la actualización fue exitosa, false en caso de error.
-     */
+
     public function syncPaymentMethodsToDB()
     {
         $methods = $this->getPaymentMethods();
 
         if (!$methods || !is_array($methods)) {
+            ProntoPagoLogger::error('Failed to fetch payment methods', ['response' => $methods]);
             return false;
         }
 
@@ -97,33 +81,72 @@ class ProntoPagoHelper
             ]);
         }
 
+        ProntoPagoLogger::info('Payment methods synchronized', ['count' => count($methods)]);
         return true;
     }
 
-    /**
-     * Llama a POST /api/payment/new para crear un nuevo pago.
-     *
-     * @param array $paymentData Datos necesarios (currency, country, amount, etc.).
-     * @return array|false Respuesta de la API o false si ocurre un error.
-     */
-    public function createNewPayment(array $paymentData)
+    public function createNewPayment(Cart $cart, string $paymentMethod)
     {
-        $apiManager = $this->getApiManager();
-        return $apiManager->request('POST', 'api/payment/new', [
-            'json' => $paymentData,
+        if (empty($paymentMethod)) {
+            ProntoPagoLogger::error('Empty payment method provided');
+            return false;
+        }
+
+        $context = Context::getContext();
+        $customer = new Customer($cart->id_customer);
+        $address = new Address($cart->id_address_invoice);
+        $currency = new Currency($cart->id_currency);
+        $country = new Country($address->id_country);
+
+        $order_reference = Order::generateReference();
+        $amount = (float) $cart->getOrderTotal();
+
+        $link = $context->link;
+        $token = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
+        $raw = $order_reference . '|' . (int) $cart->id . '|' . $token;
+        $psref = base64_encode($raw);
+
+        $confirmation_url = $link->getModuleLink('vc_prontopaga', 'webhook', [ProntoPagoConfig::SECURE_REF_PARAM => $psref], true);
+        $rejected_url = $link->getModuleLink('vc_prontopaga', 'return', [ProntoPagoConfig::SECURE_REF_PARAM => $psref], true);
+        // $rejected_url = $link->getPageLink('order', true, null, 'step=3');
+        $final_url = $link->getModuleLink('vc_prontopaga', 'return', [ProntoPagoConfig::SECURE_REF_PARAM => $psref], true);
+
+        $data = [
+            'currency'        => $currency->iso_code,
+            'country'         => $country->iso_code,
+            'amount'          => number_format($amount, 2, '.', ''),
+            'clientName'      => $customer->firstname . ' ' . $customer->lastname,
+            'clientEmail'     => $customer->email,
+            'clientPhone'     => $address->phone_mobile ?: $address->phone,
+            'clientDocument'  => empty($address->dni) ? ProntoPagoConfig::CLIENT_DOCUMENT_DEFAULT : $address->dni,
+            'paymentMethod'   => $paymentMethod,
+            'urlConfirmation' => $confirmation_url,
+            'urlFinal'        => $final_url,
+            'urlRejected'     => $rejected_url,
+            'order'           => $cart->id . '-' . $order_reference,
+        ];
+
+        $data['sign'] = $this->generateSignature($data);
+
+        $response = $this->getApiManager()->request('POST', 'api/payment/new', [
+            'json' => $data,
         ]);
+
+        if (!$response || !is_array($response) || !isset($response['urlPay'])) {
+            ProntoPagoLogger::error('createNewPayment failed', ['data' => $data, 'response' => $response]);
+            return false;
+        }
+
+        // ProntoPagoLogger::info('createNewPayment success', ['response' => $response]);
+        return $response['urlPay'];
     }
 
-    /**
-     * Genera una firma HMAC-SHA256 a partir de un array de datos.
-     * Ordena las claves, concatena clave+valor y firma con la secretKey.
-     *
-     * @param array  $data         Datos a firmar (clave => valor).
-     * @param string $concatString Cadena inicial para concatenación (opcional).
-     * @return string Firma generada (hexadecimal).
-     */
     public function generateSignature(array $data, $concatString = '')
     {
+        if (isset($data['sign'])) {
+            unset($data['sign']);
+        }
+
         $keys = array_keys($data);
         sort($keys);
 
@@ -131,6 +154,6 @@ class ProntoPagoHelper
             $concatString .= $key . $data[$key];
         }
 
-        return hash_hmac('sha256', $concatString, $this->secretKey);
+        return hash_hmac(ProntoPagoConfig::SIGN_ALGORITHM, $concatString, $this->secretKey);
     }
 }

@@ -25,3 +25,17 @@
 * Don't forget to prefix your containers with your own identifier
 * to avoid any conflicts with others containers.
 */
+
+/* Solo afecta si el contenedor tiene la clase `with-opacity` */
+.prontopaga-methods.with-opacity .payment-method-img {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.prontopaga-methods.with-opacity .payment-method-img:hover {
+    opacity: 1;
+}
+
+.prontopaga-methods .payment-method-item {
+    margin-bottom: 18px;
+}

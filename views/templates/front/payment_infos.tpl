@@ -23,23 +23,17 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
-{extends file='page.tpl'}
-
-{block name='page_content'}
-<div>
-	<h3>{l s='Available Payment Methods' mod='vc_prontopaga'}</h3>
-    <br><br>
-	{if isset($payment_methods) && $payment_methods}
-		<ul class="list-group">
-			{foreach from=$payment_methods item=method}
-				<li class="list-group-item">
-					<img src="{$method.logo|escape:'htmlall':'UTF-8'}" alt="{$method.name|escape:'htmlall':'UTF-8'}" style="height:80px; margin-right:10px;">
-					<strong>{$method.name|escape:'htmlall':'UTF-8'}</strong>
-				</li>
-			{/foreach}
-		</ul>
-	{else}
-		<p class="alert alert-danger">{l s='No available payment methods. Please contact support.' mod='vc_prontopaga'}</p>
-	{/if}
-</div>
-{/block}
+{if isset($payment_methods) && $payment_methods}
+    <div class="prontopaga-methods with-opacity">
+        {foreach from=$payment_methods item=method}
+            <div class="payment-method-item text-center">
+                <a href="{$method.paymentUrl|escape:'htmlall':'UTF-8'}">
+                    <img src="{$method.logo|escape:'htmlall':'UTF-8'}"
+                         alt="{$method.name|escape:'htmlall':'UTF-8'}"
+                         class="payment-method-img"
+                         style="max-height:60px; max-width:100%; object-fit:contain;" />
+                </a>
+            </div>
+        {/foreach}
+    </div>
+{/if}

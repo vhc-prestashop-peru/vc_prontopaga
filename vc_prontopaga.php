@@ -39,7 +39,9 @@ class Vc_prontopaga extends PaymentModule
         $this->name = 'vc_prontopaga';
         $this->tab = 'payments_gateways';
         $this->version = '1.0.0';
-        $this->author = 'Victor Castro';
+        $this->author = 'ProntoPaga';
+        $this->developer = 'Victor Castro';
+        $this->github = 'https://github.com/victorcastro';
         $this->need_instance = 0;
         $this->bootstrap = true;
 
@@ -48,8 +50,8 @@ class Vc_prontopaga extends PaymentModule
         $this->displayName = $this->l('ProntoPaga');
         $this->description = $this->l('Pay with prontoPaga and get better commissions.');
 
-        $this->limited_countries = array('PE');
-        $this->ps_versions_compliancy = array('min' => '8.0', 'max' => _PS_VERSION_);
+        $this->limited_countries = ['PE'];
+        $this->ps_versions_compliancy = ['min' => '8.0', 'max' => _PS_VERSION_];
     }
 
     public function install()
@@ -171,16 +173,11 @@ class Vc_prontopaga extends PaymentModule
                 'active' => 'toggle_active',
                 'align' => 'center',
                 'type' => 'bool',
-                'orderby' => false,
+                'orderby' => true,
             ],
             'name' => [
+                'orderby' => true,
                 'title' => $this->l('Name'),
-            ],
-            'method' => [
-                'title' => $this->l('Method NameCode'),
-            ],
-            'currency' => [
-                'title' => $this->l('Currency'),
             ],
             'logo' => [
                 'title' => $this->l('Logo'),
@@ -188,6 +185,10 @@ class Vc_prontopaga extends PaymentModule
                 'callback_object' => $this,
                 'orderby' => false,
                 'search' => false,
+            ],
+            'currency' => [
+                'orderby' => true,
+                'title' => $this->l('Currency'),
             ],
         ];
     
@@ -361,10 +362,38 @@ class Vc_prontopaga extends PaymentModule
         if (!$this->checkCurrency($params['cart'])) {
             return;
         }
+        
+        $cart = $params['cart'];
+        $liveMode  = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
+        $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
+        $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
+    
+        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
+    
+        $methods = Db::getInstance()->executeS(
+            'SELECT * FROM ' . _DB_PREFIX_ . 'vc_prontopaga_methods 
+             WHERE active = 1 AND currency = "' . pSQL($this->context->currency->iso_code) . '"'
+        );
+    
+        $enrichedMethods = [];
+        foreach ($methods as $method) {
+            $url = $helper->createNewPayment($cart, $method['method']);
+            if ($url) {
+                $method['paymentUrl'] = $url;
+                $enrichedMethods[] = $method;
+            }
+        }
+    
+        $this->context->smarty->assign([
+            'payment_methods' => $enrichedMethods,
+        ]);
+        
         $option = new \PrestaShop\PrestaShop\Core\Payment\PaymentOption();
         $option->setCallToActionText($this->l('Pay with ProntoPaga'))
-            ->setAction($this->context->link->getModuleLink($this->name, 'redirect', array(), true));
-
+            ->setAction($this->context->link->getModuleLink($this->name, 'payment', array(), true))
+            ->setAdditionalInformation(
+                $this->fetch('module:' . $this->name . '/views/templates/front/payment_infos.tpl')
+            );
         return [
             $option
         ];

@@ -8,26 +8,14 @@
  * Requisitos:
  *   - PHP >= 7.2.5
  *
- * Ejemplo de uso:
- *   $liveMode  = (bool)Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
- *   $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
- *   $apiManager = new ProntoPago\ProntoPagoApiManager($liveMode, $token);
- *
- *   $response = $apiManager->request('GET', 'api/balance');
- *   if ($response === false) {
- *       // Manejar el error...
- *   } else {
- *       // Procesar la respuesta...
- *   }
  */
 
 namespace ProntoPago;
 
+use ProntoPago\ProntoPagoConfig;
+
 class ProntoPagoApiManager
 {
-    private const API_URL_SANDBOX    = 'https://sandbox.prontopaga.com';
-    private const API_URL_PRODUCTION = 'https://prontopaga.com';
-
     private $baseUri;
     private $token;
 
@@ -39,7 +27,7 @@ class ProntoPagoApiManager
      */
     public function __construct($liveMode, $token)
     {
-        $this->baseUri = $liveMode ? self::API_URL_PRODUCTION : self::API_URL_SANDBOX;
+        $this->baseUri = $liveMode ? ProntoPagoConfig::API_URL_PRODUCTION : ProntoPagoConfig::API_URL_SANDBOX;
         $this->token   = $token;
     }
 
@@ -78,7 +66,7 @@ class ProntoPagoApiManager
             case 'POST':
                 curl_setopt($ch, CURLOPT_POST, true);
                 if (isset($options['json'])) {
-                    $jsonData = json_encode($options['json']);
+                    $jsonData = json_encode($options['json'], JSON_UNESCAPED_SLASHES);
                     $defaultHeaders[] = 'Content-Type: application/json';
                     curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
                 }
@@ -89,26 +77,31 @@ class ProntoPagoApiManager
             case 'PATCH':
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
                 if (isset($options['json'])) {
-                    $jsonData = json_encode($options['json']);
+                    $jsonData = json_encode($options['json'], JSON_UNESCAPED_SLASHES);
                     $defaultHeaders[] = 'Content-Type: application/json';
                     curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
                 }
                 break;
 
             default:
-                // GET u otro verbo no contemplado explícitamente
                 curl_setopt($ch, CURLOPT_HTTPGET, true);
                 break;
         }
-
+        
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $defaultHeaders);
-
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         $response = curl_exec($ch);
 
         if (curl_errno($ch)) {
+            $this->logError(
+                "cURL Error, {$errorMessage}",
+                $url,
+                $method,
+                $defaultHeaders,
+                $jsonData ?? null
+            );
             curl_close($ch);
             return false;
         }
@@ -122,6 +115,31 @@ class ProntoPagoApiManager
             return is_array($decoded) ? $decoded : [];
         }
 
+        $this->logError(
+            "HTTP status code $statusCode",
+            $url,
+            $method,
+            $defaultHeaders,
+            $jsonData ?? null,
+            $response
+        );
         return false;
+    }
+    
+    private function logError($context, $url, $method, $headers, $bodyRequest = null, $rawResponse = null)
+    {
+        error_log("[ProntoPago Error] ===== START ERROR LOG =====");
+        error_log("[ProntoPago Error] Context: $context");
+        error_log("[ProntoPago Error] URL: $url");
+        error_log("[ProntoPago Error] Method: $method");
+        error_log("[ProntoPago Error] Headers: " . print_r($headers, true));
+        if ($bodyRequest) {
+            error_log("[ProntoPago Error] BodyRequest: $bodyRequest");
+        }
+        if ($rawResponse) {
+            error_log("[ProntoPago Error] RawResponse: $rawResponse");
+        }
+        error_log("[ProntoPago Error] ===== END ERROR LOG =====");
+        error_log("");
     }
 }
