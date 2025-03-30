@@ -26,4 +26,6 @@ class ProntoPagaConfig
     public const SECURE_REF_PARAM = 'psref';
     
     public const CLIENT_DOCUMENT_DEFAULT = '111111111';
+    
+    public const AMOUNT_DECIMALS = 2;
 }

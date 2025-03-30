@@ -48,7 +48,7 @@ class Vc_prontopagaReturnModuleFrontController extends ModuleFrontController
 
         $status = $this->verifyTransactionAndStatus($securePsref);
 
-        if ($status !== 'paid') {
+        if ($status !== 'success') {
             ProntoPagaLogger::info('Return: Estado no exitoso, redirigiendo a paso 3', ['status' => $status]);
             $this->context->cookie->__set('prontopaga_error', 'El pago fue rechazado o está pendiente. Intenta con otro método.');
             Tools::redirect(Context::getContext()->link->getPageLink('order', true, null, 'step=3'));
@@ -95,7 +95,7 @@ class Vc_prontopagaReturnModuleFrontController extends ModuleFrontController
         $transaction = Db::getInstance()->getRow(
             'SELECT * FROM `' . _DB_PREFIX_ . 'vc_prontopaga_transactions`
              WHERE `id_cart` = ' . (int)$cartId . '
-             AND `order_reference` = "' . pSQL($orderRef) . '"'
+             AND `order` = "' . pSQL($orderRef) . '"'
         );
 
         if (!$transaction || empty($transaction['uid'])) {
@@ -123,11 +123,28 @@ class Vc_prontopagaReturnModuleFrontController extends ModuleFrontController
 
         $fieldsToCheck = ['amount', 'currency', 'country', 'order'];
         foreach ($fieldsToCheck as $field) {
-            if (!isset($apiData[$field]) || (string)$apiData[$field] !== (string)$transaction[$field]) {
+            $expected = $transaction[$field] ?? null;
+            $received = $apiData[$field] ?? null;
+
+            if ($expected === null || $received === null) {
+                ProntoPagaLogger::error("verifyTransactionAndStatus: Valor nulo detectado en campo [$field]", [
+                    'uid' => $transaction['uid'],
+                    'expected' => $expected,
+                    'received' => $received,
+                ]);
+                return null;
+            }
+                
+            if ($field === 'amount') {
+                $expected = number_format((float)$expected, 2, '.', '');
+                $received = number_format((float)$received, 2, '.', '');
+            }
+
+            if ((string)$expected !== (string)$received) {
                 ProntoPagaLogger::error("verifyTransactionAndStatus: Mismatch en campo [$field]", [
                     'uid' => $transaction['uid'],
-                    'expected' => $transaction[$field] ?? null,
-                    'received' => $apiData[$field] ?? null,
+                    'expected' => $expected,
+                    'received' => $received,
                 ]);
                 return null;
             }

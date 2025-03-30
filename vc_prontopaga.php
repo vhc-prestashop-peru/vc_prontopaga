@@ -372,6 +372,7 @@ class Vc_prontopaga extends PaymentModule
         $this->context->smarty->assign([
             'payment_link' => $this->context->link->getModuleLink($this->name, 'genurl', [], true),
             'payment_methods' => $methods,
+            'module_dir' => $this->_path,
         ]);
         
         $option = new \PrestaShop\PrestaShop\Core\Payment\PaymentOption();

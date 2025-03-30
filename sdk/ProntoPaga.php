@@ -61,7 +61,30 @@ class ProntoPaga
     public function getPaymentData(string $uid)
     {
         $apiManager = $this->getApiManager();
-        return $apiManager->request('GET', 'api/payment/data/'.$uid);
+        $response = $apiManager->request('GET', 'api/payment/data/' . $uid);
+    
+        if (!$response || !is_array($response)) {
+            ProntoPagaLogger::error('getPaymentData: Respuesta inválida o vacía', [
+                'uid' => $uid,
+                'response' => $response,
+            ]);
+            return false;
+        }
+    
+        if (isset($response['error']) || isset($response['message'])) {
+            ProntoPagaLogger::error('getPaymentData: Error recibido desde el servicio', [
+                'uid' => $uid,
+                'response' => $response,
+            ]);
+            return false;
+        }
+    
+        ProntoPagaLogger::info('getPaymentData: Respuesta exitosa', [
+            'uid' => $uid,
+            'response' => $response,
+        ]);
+    
+        return $response;
     }
 
     public function syncPaymentMethodsToDB()
@@ -168,20 +191,21 @@ class ProntoPaga
         $address = new Address($cart->id_address_invoice);
         $currency = new Currency($cart->id_currency);
         $country = new Country($address->id_country);
-        $orderRef = $cart->id . '-' . Order::generateReference();
-    
+
         $values = [
             'id_cart'         => (int) $cart->id,
             'id_customer'     => (int) $customer->id,
+            'status'          => 'new',
             'payment_method'  => pSQL($paymentMethod),
             'country'         => pSQL($country->iso_code),
             'currency'        => pSQL($currency->iso_code),
             'amount'          => (float) $data['amount'],
-            'order_reference' => pSQL($orderRef),
+            'order' => pSQL($data['order']),
             'url_pay'         => pSQL($response['urlPay']),
             'uid'             => pSQL($response['uid'] ?? ''),
             'reference'       => pSQL($response['reference'] ?? ''),
             'created_at'      => date('Y-m-d H:i:s'),
+            'updated_at'      => date('Y-m-d H:i:s'),
         ];
     
         $success = Db::getInstance()->insert('vc_prontopaga_transactions', $values);

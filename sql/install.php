@@ -43,15 +43,17 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga_transacti
     `id_transaction` INT(11) NOT NULL AUTO_INCREMENT,
     `id_cart` INT(11) NOT NULL,
     `id_customer` INT(11) NOT NULL,
+    `status` CHAR(12),
     `payment_method` VARCHAR(64),
     `country` VARCHAR(5),
     `currency` VARCHAR(5),
     `amount` DECIMAL(20,6),
-    `order_reference` VARCHAR(64),
+    `order` VARCHAR(64),
     `url_pay` TEXT,
     `uid` VARCHAR(64),
     `reference` VARCHAR(64),
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id_transaction`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
 
