@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-require_once dirname(__FILE__).'/sdk/ProntoPagoHelper.php';
+require_once dirname(__FILE__).'/sdk/ProntoPaga.php';
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -50,7 +50,7 @@ class Vc_prontopaga extends PaymentModule
         $this->displayName = $this->l('ProntoPaga');
         $this->description = $this->l('Pay with prontoPaga and get better commissions.');
 
-        $this->limited_countries = ['PE'];
+        $this->limited_countries = ['PE', 'CL'];
         $this->ps_versions_compliancy = ['min' => '8.0', 'max' => _PS_VERSION_];
     }
 
@@ -90,6 +90,7 @@ class Vc_prontopaga extends PaymentModule
             $this->registerHook('paymentOptions') &&
             $this->registerHook('displayAdminOrderTabOrder') &&
             $this->registerHook('displayOrderConfirmation') &&
+            $this->registerHook('displayBeforeCarrier') &&
             $this->registerHook('displayPaymentReturn');
     }
 
@@ -261,7 +262,7 @@ class Vc_prontopaga extends PaymentModule
                     [
                         'type' => 'checkbox',
                         'label' => $this->l('Supported Currencies'),
-                        'desc' => $this->l('Select the currencies supported by ProntoPago.'),
+                        'desc' => $this->l('Select the currencies supported by ProntoPaga.'),
                         'name' => 'VC_PRONTOPAGA_SUPPORTED_CURRENCIES',
                         'required'=>true,
                         'values' => [
@@ -350,8 +351,8 @@ class Vc_prontopaga extends PaymentModule
 
     public function hookDisplayHeader()
     {
-        $this->context->controller->addJS($this->_path.'/views/js/front.js');
-        $this->context->controller->addCSS($this->_path.'/views/css/front.css');
+        $this->context->controller->addJS($this->_path.'/views/js/prontopaga.js');
+        $this->context->controller->addCSS($this->_path.'/views/css/prontopaga.css');
     }
 
     public function hookPaymentOptions($params)
@@ -362,41 +363,26 @@ class Vc_prontopaga extends PaymentModule
         if (!$this->checkCurrency($params['cart'])) {
             return;
         }
-        
-        $cart = $params['cart'];
-        $liveMode  = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
-        $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
-        $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
-    
-        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
     
         $methods = Db::getInstance()->executeS(
             'SELECT * FROM ' . _DB_PREFIX_ . 'vc_prontopaga_methods 
              WHERE active = 1 AND currency = "' . pSQL($this->context->currency->iso_code) . '"'
         );
     
-        $enrichedMethods = [];
-        foreach ($methods as $method) {
-            $url = $helper->createNewPayment($cart, $method['method']);
-            if ($url) {
-                $method['paymentUrl'] = $url;
-                $enrichedMethods[] = $method;
-            }
-        }
-    
         $this->context->smarty->assign([
-            'payment_methods' => $enrichedMethods,
+            'payment_link' => $this->context->link->getModuleLink($this->name, 'genurl', [], true),
+            'payment_methods' => $methods,
         ]);
         
         $option = new \PrestaShop\PrestaShop\Core\Payment\PaymentOption();
         $option->setCallToActionText($this->l('Pay with ProntoPaga'))
-            ->setAction($this->context->link->getModuleLink($this->name, 'payment', array(), true))
+            ->setModuleName($this->name)
+            ->setAction($this->context->link->getModuleLink($this->name, 'payment', [], true))
             ->setAdditionalInformation(
                 $this->fetch('module:' . $this->name . '/views/templates/front/payment_infos.tpl')
             );
-        return [
-            $option
-        ];
+        
+        return [$option];
     }
 
     public function checkCurrency($cart)
@@ -439,6 +425,20 @@ class Vc_prontopaga extends PaymentModule
         return $this->display(__FILE__, 'confirmation.tpl');
     }
     
+    public function hookDisplayBeforeCarrier($params)
+    {
+        if (isset($this->context->cookie->vc_prontopaga_error)) {
+            $this->context->smarty->assign([
+                'vc_prontopaga_error' => $this->context->cookie->vc_prontopaga_error
+            ]);
+            unset($this->context->cookie->vc_prontopaga_error);
+    
+            return $this->display(__FILE__, 'views/templates/hook/before_carrier.tpl');
+        }
+    
+        return '';
+    }
+    
     /**
      * Generate signature using ProntoPagaHelper.
      *
@@ -449,7 +449,7 @@ class Vc_prontopaga extends PaymentModule
     public function generateSignature(array $data, $concatString = '')
     {
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
-        return ProntoPagoHelper::generateSignature($data, $secretKey, $concatString);
+        return ProntoPaga::generateSignature($data, $secretKey, $concatString);
     }
     
     public function callPaymentMethods()
@@ -458,9 +458,9 @@ class Vc_prontopaga extends PaymentModule
         $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
     
-        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
+        $prontoPaga = new \ProntoPaga\ProntoPaga($liveMode, $token, $secretKey);
     
-        $methods = $helper->getPaymentMethods();
+        $methods = $prontoPaga->getPaymentMethods();
     
         if ($methods === false) {
             return false;
@@ -475,7 +475,7 @@ class Vc_prontopaga extends PaymentModule
         $token = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
     
-        $helper = new \ProntoPago\ProntoPagoHelper($liveMode, $token, $secretKey);
-        return $helper->syncPaymentMethodsToDb();
+        $prontoPaga = new \ProntoPaga\ProntoPaga($liveMode, $token, $secretKey);
+        return $prontoPaga->syncPaymentMethodsToDb();
     }
 }

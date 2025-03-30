@@ -24,16 +24,25 @@
 *}
 
 {if isset($payment_methods) && $payment_methods}
-    <div class="prontopaga-methods with-opacity">
-        {foreach from=$payment_methods item=method}
-            <div class="payment-method-item text-center">
-                <a href="{$method.paymentUrl|escape:'htmlall':'UTF-8'}">
-                    <img src="{$method.logo|escape:'htmlall':'UTF-8'}"
-                         alt="{$method.name|escape:'htmlall':'UTF-8'}"
-                         class="payment-method-img"
-                         style="max-height:60px; max-width:100%; object-fit:contain;" />
-                </a>
-            </div>
-        {/foreach}
+    <div class="prontopaga-methods with-opacity text-center" data-link="{$payment_link|escape:'htmlall':'UTF-8'}">
+        <div>
+            {foreach from=$payment_methods item=method}
+                <div class="payment-method-item">
+                    <button type="button"
+                            class="prontopaga-pay-btn btn"
+                            data-method="{$method.method|escape:'htmlall':'UTF-8'}"
+                            style="background: none; border: none; padding: 0; cursor: pointer;">
+                        <img src="{$method.logo|escape:'htmlall':'UTF-8'}"
+                             alt="{$method.name|escape:'htmlall':'UTF-8'}"
+                             title="{$method.name|escape:'htmlall':'UTF-8'}"
+                             class="payment-method-img"
+                             style="max-height:60px; max-width:100%; object-fit:contain;" />
+                    </button>
+                </div>
+            {/foreach}
+        </div>
     </div>
+    <script src="{$module_dir}views/js/prontopaga.js"></script>
+{else}
+    <p class="alert alert-danger">{l s='No available payment methods. Please contact support.' mod='vc_prontopaga'}</p>
 {/if}

@@ -1,16 +1,17 @@
 <?php
 
-namespace ProntoPago;
+namespace ProntoPaga;
 
-namespace ProntoPago;
-
-class ProntoPagoLogger
+class ProntoPagaLogger
 {
     const LOG_DIR = __DIR__ . '/../logs';
-    const LOG_FILE = self::LOG_DIR . '/prontopago.log';
+    const LOG_FILE = self::LOG_DIR . '/prontopaga.log';
 
     public static function info(string $message, array $context = [])
     {
+        if (!ProntoPagaConfig::DEBUG) {
+            return;
+        }
         self::writeLog('INFO', $message, $context);
     }
 

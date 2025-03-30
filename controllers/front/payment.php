@@ -24,15 +24,22 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
+require_once __DIR__ . '/../../sdk/ProntoPaga.php';
+
+use ProntoPaga\ProntoPaga;
+
 class vc_prontopagapaymentModuleFrontController extends ModuleFrontController
 {
     public function postProcess()
     {
+        Tools::redirect(Context::getContext()->link->getPageLink('order', true, null, 'step=3'));
+        
         if (Tools::getValue('action') == 'error') {
             return $this->displayError('An error occurred while trying to redirect the customer');
         }
     
-        $currency = new Currency($this->context->cart->id_currency);
+        $cart = $this->context->cart;
+        $currency = new Currency($cart->id_currency);
         $currency_iso = pSQL($currency->iso_code);
     
         $methods = Db::getInstance()->executeS(
@@ -41,27 +48,10 @@ class vc_prontopagapaymentModuleFrontController extends ModuleFrontController
              AND currency = "' . $currency_iso . '"'
         );
     
-        $enrichedMethods = [];
-        $cart = $this->context->cart;
-    
-        $helper = new \ProntoPago\ProntoPagoHelper(
-            Configuration::get('VC_PRONTOPAGA_LIVE_MODE'),
-            Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN'),
-            Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY')
-        );
-    
-        foreach ($methods as $method) {
-            $paymentUrl = $helper->createNewPayment($cart, $method['method']);
-            if ($paymentUrl) {
-                $method['paymentUrl'] = $paymentUrl;
-                $enrichedMethods[] = $method;
-            }
-        }
-    
         $this->context->smarty->assign([
             'cart_id' => $cart->id,
             'secure_key' => $this->context->customer->secure_key,
-            'payment_methods' => $enrichedMethods,
+            'payment_methods' => $methods,
         ]);
     
         return $this->setTemplate('module:vc_prontopaga/views/templates/front/payment.tpl');

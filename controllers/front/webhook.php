@@ -1,12 +1,12 @@
 <?php
 
-require_once __DIR__ . '/../../sdk/ProntoPagoLogger.php';
-require_once __DIR__ . '/../../sdk/ProntoPagoConfig.php';
-require_once __DIR__ . '/../../sdk/ProntoPagoValidator.php';
+require_once __DIR__ . '/../../sdk/ProntoPagaLogger.php';
+require_once __DIR__ . '/../../sdk/ProntoPagaConfig.php';
+require_once __DIR__ . '/../../sdk/ProntoPagaValidator.php';
 
-use ProntoPago\ProntoPagoLogger;
-use ProntoPago\ProntoPagoConfig;
-use ProntoPago\ProntoPagoValidator;
+use ProntoPaga\ProntoPagaLogger;
+use ProntoPaga\ProntoPagaConfig;
+use ProntoPaga\ProntoPagaValidator;
 
 class Vc_prontopagaWebhookModuleFrontController extends ModuleFrontController
 {
@@ -14,36 +14,36 @@ class Vc_prontopagaWebhookModuleFrontController extends ModuleFrontController
     {
         $rawBody = file_get_contents('php://input');
         $payload = json_decode($rawBody, true);
-        $psref = Tools::getValue(ProntoPagoConfig::SECURE_REF_PARAM);
+        $psref = Tools::getValue(ProntoPagaConfig::SECURE_REF_PARAM);
 
-        ProntoPagoLogger::info('Webhook received', [
+        ProntoPagaLogger::info('Webhook received', [
             'ip' => Tools::getRemoteAddr(),
             'payload' => $payload
         ]);
 
         if (!$this->module->active) {
-            ProntoPagoLogger::error('Module inactive');
+            ProntoPagaLogger::error('Module inactive');
             http_response_code(403);
             die('Module inactive');
         }
 
-        if (!ProntoPagoValidator::isAuthorizedIP()) {
+        if (!ProntoPagaValidator::isAuthorizedIP()) {
             http_response_code(403);
             die('Unauthorized IP');
         }
 
         if (!is_array($payload)) {
-            ProntoPagoLogger::error('Invalid JSON payload', ['raw' => $rawBody]);
+            ProntoPagaLogger::error('Invalid JSON payload', ['raw' => $rawBody]);
             http_response_code(400);
             die('Invalid JSON');
         }
 
-        if (!ProntoPagoValidator::hasRequiredFields($payload, ['order', 'status', 'amount', 'currency', 'sign'])) {
+        if (!ProntoPagaValidator::hasRequiredFields($payload, ['order', 'status', 'amount', 'currency', 'sign'])) {
             http_response_code(400);
             die('Missing required fields');
         }
 
-        if (!ProntoPagoValidator::validatePSref($psref)) {
+        if (!ProntoPagaValidator::validatePSref($psref)) {
             http_response_code(400);
             die('Invalid secure_psref');
         }
@@ -60,7 +60,7 @@ class Vc_prontopagaWebhookModuleFrontController extends ModuleFrontController
         $amount = (float)$payload['amount'];
         $currencyCode = $payload['currency'];
 
-        if (!ProntoPagoValidator::isMatchingPayment($expectedAmount, $amount, $currency->iso_code, $currencyCode)) {
+        if (!ProntoPagaValidator::isMatchingPayment($expectedAmount, $amount, $currency->iso_code, $currencyCode)) {
             http_response_code(400);
             die('Amount or currency mismatch');
         }
@@ -77,17 +77,17 @@ class Vc_prontopagaWebhookModuleFrontController extends ModuleFrontController
             case 'success':
                 $payment_status = Configuration::get('PS_OS_PAYMENT');
                 $message = 'Payment successful via ProntoPaga';
-                ProntoPagoLogger::info($message);
+                ProntoPagaLogger::info($message);
                 break;
         
             case 'rejected':
                 $payment_status = Configuration::get('PS_OS_ERROR');
                 $message = 'Payment rejected via ProntoPaga';
-                ProntoPagoLogger::info($message);
+                ProntoPagaLogger::info($message);
                 break;
         
             default:
-                ProntoPagoLogger::info('Ignored webhook due to unsupported status', ['status' => $status]);
+                ProntoPagaLogger::info('Ignored webhook due to unsupported status', ['status' => $status]);
                 http_response_code(200);
                 die('Status ignored');
         }
@@ -104,9 +104,9 @@ class Vc_prontopagaWebhookModuleFrontController extends ModuleFrontController
                 false,
                 $secure_key
             );
-            ProntoPagoLogger::info('Order validated', ['cart_id' => $cart->id, 'status' => $status]);
+            ProntoPagaLogger::info('Order validated', ['cart_id' => $cart->id, 'status' => $status]);
         } else {
-            ProntoPagoLogger::info('Order already validated', ['cart_id' => $cart->id]);
+            ProntoPagaLogger::info('Order already validated', ['cart_id' => $cart->id]);
         }
 
         http_response_code(200);

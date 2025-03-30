@@ -23,8 +23,10 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 */
+
 $sql = array();
 
+// Tabla para los métodos de pago disponibles
 $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga_methods` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `method_id` INT(11) NOT NULL,
@@ -36,8 +38,26 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga_methods` 
     PRIMARY KEY (`id`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
+// Tabla para almacenar las transacciones generadas
+$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vc_prontopaga_transactions` (
+    `id_transaction` INT(11) NOT NULL AUTO_INCREMENT,
+    `id_cart` INT(11) NOT NULL,
+    `id_customer` INT(11) NOT NULL,
+    `payment_method` VARCHAR(64),
+    `country` VARCHAR(5),
+    `currency` VARCHAR(5),
+    `amount` DECIMAL(20,6),
+    `order_reference` VARCHAR(64),
+    `url_pay` TEXT,
+    `uid` VARCHAR(64),
+    `reference` VARCHAR(64),
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id_transaction`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
+
+// Ejecutar todas las queries
 foreach ($sql as $query) {
-    if (Db::getInstance()->execute($query) == false) {
+    if (!Db::getInstance()->execute($query)) {
         return false;
     }
 }

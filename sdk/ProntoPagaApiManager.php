@@ -1,8 +1,8 @@
 <?php
 /**
- * ProntoPagoApiManager
+ * ProntoPagaApiManager
  *
- * Esta clase gestiona la comunicación con la API de ProntoPago utilizando cURL de forma nativa,
+ * Esta clase gestiona la comunicación con la API de ProntoPaga utilizando cURL de forma nativa,
  * sin depender de librerías instaladas con Composer. En caso de error, devuelve false.
  *
  * Requisitos:
@@ -10,11 +10,11 @@
  *
  */
 
-namespace ProntoPago;
+namespace ProntoPaga;
 
-use ProntoPago\ProntoPagoConfig;
+use ProntoPaga\ProntoPagaConfig;
 
-class ProntoPagoApiManager
+class ProntoPagaApiManager
 {
     private $baseUri;
     private $token;
@@ -27,12 +27,12 @@ class ProntoPagoApiManager
      */
     public function __construct($liveMode, $token)
     {
-        $this->baseUri = $liveMode ? ProntoPagoConfig::API_URL_PRODUCTION : ProntoPagoConfig::API_URL_SANDBOX;
+        $this->baseUri = $liveMode ? ProntoPagaConfig::API_URL_PRODUCTION : ProntoPagaConfig::API_URL_SANDBOX;
         $this->token   = $token;
     }
 
     /**
-     * Método genérico para hacer peticiones HTTP a la API de ProntoPago usando cURL.
+     * Método genérico para hacer peticiones HTTP a la API de ProntoPaga usando cURL.
      *
      * @param string $method   Verbo HTTP (GET, POST, PUT, etc.).
      * @param string $endpoint Ruta de la API (por ejemplo, 'api/balance').
@@ -128,18 +128,18 @@ class ProntoPagoApiManager
     
     private function logError($context, $url, $method, $headers, $bodyRequest = null, $rawResponse = null)
     {
-        error_log("[ProntoPago Error] ===== START ERROR LOG =====");
-        error_log("[ProntoPago Error] Context: $context");
-        error_log("[ProntoPago Error] URL: $url");
-        error_log("[ProntoPago Error] Method: $method");
-        error_log("[ProntoPago Error] Headers: " . print_r($headers, true));
+        error_log("[ProntoPaga Error] ===== START ERROR LOG =====");
+        error_log("[ProntoPaga Error] Context: $context");
+        error_log("[ProntoPaga Error] URL: $url");
+        error_log("[ProntoPaga Error] Method: $method");
+        error_log("[ProntoPaga Error] Headers: " . print_r($headers, true));
         if ($bodyRequest) {
-            error_log("[ProntoPago Error] BodyRequest: $bodyRequest");
+            error_log("[ProntoPaga Error] BodyRequest: $bodyRequest");
         }
         if ($rawResponse) {
-            error_log("[ProntoPago Error] RawResponse: $rawResponse");
+            error_log("[ProntoPaga Error] RawResponse: $rawResponse");
         }
-        error_log("[ProntoPago Error] ===== END ERROR LOG =====");
+        error_log("[ProntoPaga Error] ===== END ERROR LOG =====");
         error_log("");
     }
 }

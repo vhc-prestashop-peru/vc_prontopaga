@@ -1,8 +1,8 @@
 <?php
 
-namespace ProntoPago;
+namespace ProntoPaga;
 
-class ProntoPagoConfig
+class ProntoPagaConfig
 {
     public const API_URL_SANDBOX    = 'https://sandbox.prontopaga.com';
     
@@ -16,8 +16,10 @@ class ProntoPagoConfig
         '44.219.63.240',           // Prod 2
         '52.206.25.128',           // Prod 3
     ];
+    
+    public const DEBUG = true;
 
-    public const LOG_PATH = __DIR__ . '/../logs/prontopago.log';
+    public const LOG_PATH = __DIR__ . '/../logs/prontopaga.log';
     
     public const SIGN_ALGORITHM = 'sha256';
     

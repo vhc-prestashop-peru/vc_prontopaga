@@ -25,3 +25,37 @@
 * Don't forget to prefix your containers with your own identifier
 * to avoid any conflicts with others containers.
 */
+
+/* Solo afecta si el contenedor tiene la clase `with-opacity` */
+.prontopaga-methods.with-opacity .payment-method-img {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.prontopaga-methods.with-opacity .payment-method-img:hover {
+    opacity: 1;
+}
+
+.prontopaga-methods .payment-method-item {
+    margin-bottom: 18px;
+}
+
+.prontopaga-loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.75);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    color: #333;
+}
+
+.prontopaga-loader-overlay .spinner::after {
+    content: '⏳ Generando enlace de pago';
+}

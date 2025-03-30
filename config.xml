@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
-	<name>vc_prontopaga</name>
-	<displayName><![CDATA[ProntoPaga - Prestashop 8]]></displayName>
-	<version><![CDATA[1.0.0]]></version>
-	<description><![CDATA[Pay with prontoPaga and get better commissions.]]></description>
-	<author><![CDATA[Victor Castro]]></author>
-	<tab><![CDATA[payments_gateways]]></tab>
-	<is_configurable>1</is_configurable>
-	<need_instance>1</need_instance>
+    <name>vc_prontopaga</name>
+    <displayName><![CDATA[ProntoPaga]]></displayName>
+    <version><![CDATA[1.0.0]]></version>
+    <description><![CDATA[Pay with prontoPaga and get better commissions.]]></description>
+    <author><![CDATA[ProntoPaga]]></author>
+    <tab><![CDATA[payments_gateways]]></tab>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+	<limited_countries></limited_countries>
 </module>
