@@ -25,7 +25,7 @@
 
 <div class="panel">
     <div class="row vc_prontopaga-header">
-        <img class="col-xs-12 col-md-3 text-center" src="{$module_dir|escape:'html':'UTF-8'}views/img/template_1_logo.jpeg" id="payment-logo" />
+        <img class="col-xs-12 col-md-3 text-center" src="{$module_dir|escape:'html':'UTF-8'}views/img/logo-prontopaga.jpeg" id="payment-logo" />
 
         <div class="col-xs-12 col-md-9 text-right">
             <a href="https://www.prontopaga.com" target="_blank" class="btn btn-primary" id="create-account-btn">

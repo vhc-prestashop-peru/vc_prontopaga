@@ -26,6 +26,8 @@
 
 require_once dirname(__FILE__).'/sdk/ProntoPaga.php';
 
+use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -126,7 +128,7 @@ class Vc_prontopaga extends PaymentModule
 
         $output = $this->context->smarty->fetch($this->local_path.'views/templates/admin/configure.tpl');
         $output .= $this->renderForm();
-        $output .= $this->renderMethodsList();
+        $output .= $this->renderGroupedMethodsList();
         return $output;
     }
 
@@ -155,57 +157,100 @@ class Vc_prontopaga extends PaymentModule
         return $helper->generateForm(array($this->getConfigForm()));
     }
     
-    public function renderMethodsList()
+    public function renderGroupedMethodsList()
     {
         $methods = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'vc_prontopaga_methods');
-    
+        
         if (!$methods || !is_array($methods) || empty($methods)) {
-            return '<div class="alert alert-warning">' . $this->l('No payment methods found in the database. please syncronize') . '</div>';
+            return '<div class="alert alert-warning">' . $this->l('No active payment methods found.') . '</div>';
         }
     
-        $fields_list = [
-            'id' => [
-                'title' => $this->l('ID'),
-                'align' => 'center',
-                'class' => 'fixed-width-xs',
-            ],
-            'active' => [
-                'title' => $this->l('Active'),
-                'active' => 'toggle_active',
-                'align' => 'center',
-                'type' => 'bool',
-                'orderby' => true,
-            ],
-            'name' => [
-                'orderby' => true,
-                'title' => $this->l('Name'),
-            ],
-            'logo' => [
-                'title' => $this->l('Logo'),
-                'callback' => 'renderLogoColumn',
-                'callback_object' => $this,
-                'orderby' => false,
-                'search' => false,
-            ],
-            'currency' => [
-                'orderby' => true,
-                'title' => $this->l('Currency'),
-            ],
-        ];
+        $currencies = Currency::getCurrencies(false, false);
+        $currencyNames = [];
+        foreach ($currencies as $currency) {
+            $currencyNames[strtoupper($currency['iso_code'])] = $currency['name'];
+        }
     
-        $helper = new HelperList();
-        $helper->shopLinkType = '';
-        $helper->simple_header = true;
-        $helper->identifier = 'id';
-        $helper->actions = [];
-        $helper->show_toolbar = false;
-        $helper->module = $this;
-        $helper->title = $this->l('Available ProntoPaga Methods');
-        $helper->table = 'vc_prontopaga_methods';
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
-        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+        $groupedMethods = [];
+        foreach ($methods as $method) {
+            $currency = strtoupper($method['currency']);
+            if (!isset($groupedMethods[$currency])) {
+                $groupedMethods[$currency] = [];
+            }
+            $groupedMethods[$currency][] = $method;
+        }
     
-        return $helper->generateList($methods, $fields_list);
+        $toggleUrl = Context::getContext()->link->getModuleLink(
+            'vc_prontopaga',
+            'togglemethod',
+            [],
+            true
+        );
+    
+        $html = '';
+    
+        $html .= '<input type="hidden" id="vc-prontopaga-toggle-url" value="' . htmlspecialchars($toggleUrl) . '">';
+    
+        $html .= '<div class="row">';
+    
+        foreach ($groupedMethods as $currency => $methodsInCurrency) {
+            $currencyDisplayName = isset($currencyNames[$currency]) ? $currencyNames[$currency] : $currency;
+    
+            $html .= '<div class="col-md-6">';
+            $html .= '<div class="panel">';
+            $html .= '<h3 class="panel-heading">' . htmlspecialchars($currencyDisplayName) . ' - ' . htmlspecialchars($currency) . ' (' . count($methodsInCurrency) . ')</h3>';
+            
+            $html .= '<div class="table-responsive">';
+            $html .= '<table class="table table-bordered table-hover">';
+    
+            $html .= '<thead>';
+            $html .= '<tr>';
+            $html .= '<th style="width: 15%;">' . $this->l('State') . '</th>';
+            $html .= '<th>' . $this->l('Name') . '</th>';
+            $html .= '<th style="width: 20%;">' . $this->l('Image') . '</th>';
+            $html .= '</tr>';
+            $html .= '</thead>';
+    
+            $html .= '<tbody>';
+    
+            foreach ($methodsInCurrency as $method) {
+                $isActive = (int) $method['active'];
+    
+                $html .= '<tr data-method-id="' . (int) $method['id'] . '">';
+    
+                $html .= '<td class="text-center">';
+                $html .= '<a href="javascript:void(0);" class="toggle-status-btn">';
+                if ($isActive) {
+                    $html .= '<span class="status-text" style="color: green;">' . $this->l('Active') . '</span>';
+                } else {
+                    $html .= '<span class="status-text" style="color: red;">' . $this->l('Inactive') . '</span>';
+                }
+                $html .= '</a>';
+                $html .= '</td>';
+    
+                $html .= '<td>' . htmlspecialchars($method['name']) . '</td>';
+    
+                $html .= '<td class="text-center">';
+                if (!empty($method['logo'])) {
+                    $html .= '<img src="' . htmlspecialchars($method['logo']) . '" alt="' . htmlspecialchars($method['name']) . '" style="max-height: 40px; object-fit: contain;">';
+                } else {
+                    $html .= '-';
+                }
+                $html .= '</td>';
+    
+                $html .= '</tr>';
+            }
+    
+            $html .= '</tbody>';
+            $html .= '</table>';
+            $html .= '</div>';
+            $html .= '</div>';
+            $html .= '</div>';
+        }
+    
+        $html .= '</div>';
+    
+        return $html;
     }
 
     public function renderLogoColumn($logoUrl, $row)
@@ -305,20 +350,6 @@ class Vc_prontopaga extends PaymentModule
     
         return $values;
     }
-    
-    public function getCurrencyOptions()
-    {
-        $currencies = Currency::getCurrencies();
-        $options = [];
-        foreach ($currencies as $currency) {
-            $options[] = [
-                'id_option' => (int)$currency['id_currency'],
-                'name'      => $currency['name'] . ' (' . $currency['iso_code'] . ')',
-                'val'       => (int)$currency['id_currency'],
-            ];
-        }
-        return $options;
-    }
 
     protected function postProcess()
     {
@@ -344,6 +375,7 @@ class Vc_prontopaga extends PaymentModule
     public function hookDisplayBackOfficeHeader()
     {
         if (Tools::getValue('configure') == $this->name) {
+            $this->context->controller->addJS(_PS_JS_DIR_ . 'admin/prestashop.js');
             $this->context->controller->addJS($this->_path.'views/js/back.js');
             $this->context->controller->addCSS($this->_path.'views/css/back.css');
         }
@@ -441,40 +473,40 @@ class Vc_prontopaga extends PaymentModule
     }
     
     /**
-     * Generate signature using ProntoPagaHelper.
-     *
-     * @param array $data
-     *
-     * @return string
-     */
-    public function generateSignature(array $data, $concatString = '')
+     * PRONTOPAGO SDK
+    */
+    private function getCurrencyOptions()
     {
-        $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
-        return ProntoPaga::generateSignature($data, $secretKey, $concatString);
-    }
+        $currencies = Currency::getCurrencies();
     
-    public function callPaymentMethods()
-    {
         $liveMode  = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
         $token     = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
     
-        $prontoPaga = new \ProntoPaga\ProntoPaga($liveMode, $token, $secretKey);
-    
-        $methods = $prontoPaga->getPaymentMethods();
-    
-        if ($methods === false) {
-            return false;
+        if (empty($token) || empty($secretKey)) {
+            \ProntoPaga\ProntoPagaLogger::error('Missing ProntoPaga credentials when fetching currency options.');
+            return [];
         }
     
-        return $methods;
+        try {
+            $prontoPaga = new \ProntoPaga\ProntoPaga($liveMode, $token, $secretKey);
+            return $prontoPaga->getMatchedAvailableCurrencies($currencies);
+        } catch (\Exception $e) {
+            \ProntoPaga\ProntoPagaLogger::error('Error fetching matched currencies: ' . $e->getMessage());
+            return [];
+        }
     }
-    
-    public function syncPaymentMethods()
+
+    private function syncPaymentMethods()
     {
         $liveMode = (bool) Configuration::get('VC_PRONTOPAGA_LIVE_MODE');
         $token = Configuration::get('VC_PRONTOPAGA_ACCOUNT_TOKEN');
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
+        
+        if (empty($token) || empty($secretKey)) {
+            \ProntoPaga\ProntoPagaLogger::error('Missing ProntoPaga credentials when fetching currency options.');
+            return [];
+        }
     
         $prontoPaga = new \ProntoPaga\ProntoPaga($liveMode, $token, $secretKey);
         return $prontoPaga->syncPaymentMethodsToDb();

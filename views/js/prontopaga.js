@@ -46,7 +46,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const method = this.getAttribute('data-method');
             if (!method) return;
 
-            // Show loader and disable buttons
             loader.style.display = 'flex';
             document.querySelectorAll('.prontopaga-pay-btn').forEach(btn => btn.disabled = true);
 

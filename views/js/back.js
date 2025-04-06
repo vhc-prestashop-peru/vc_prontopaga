@@ -27,23 +27,84 @@
 */
 
 $(document).ready(function() {
-    // Para cada enlace toggle-secret, cambiar el tipo del input correspondiente a 'password' por defecto.
-    $('.toggle-secret').each(function(){
-        var target = $(this).data('target');
-        $('#' + target).attr('type', 'password');
-    });
+  var toggleUrl = $('#vc-prontopaga-toggle-url').val(); // URL generada dinámicamente
 
-    // Manejo del clic para alternar la visibilidad
-    $('.toggle-secret').on('click', function(e) {
-        e.preventDefault();
-        var target = $(this).data('target');
-        var $input = $('#' + target);
-        if ($input.attr('type') === 'password') {
-            $input.attr('type', 'text');
-            $(this).find('i').removeClass('icon-eye').addClass('icon-eye-slash');
+  $('.toggle-status-btn').on('click', function() {
+    var $text = $(this).find('.status-text');
+    var $row = $(this).closest('tr');
+    var idMethod = $row.data('method-id');
+
+    if (!idMethod) {
+      console.error('Method ID not found.');
+      return;
+    }
+
+    var originalText = $text.text().trim(); // Guardamos el estado original (Active o Inactive)
+    var originalStatus = (originalText === 'Active') ? 1 : 0;
+    var newStatus = (originalStatus === 1) ? 0 : 1;
+
+    // Opcional: puedes poner un loading temporal
+    $text.text('Updating...').css('color', 'gray');
+
+    // Enviar AJAX
+    fetch(toggleUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      credentials: 'same-origin', // 🔥 Mantener sesión
+      body: `id_method=${idMethod}&new_status=${newStatus}&ajax=1`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // ✅ Aquí actualizar visualmente basado en lo que diga el servidor
+        console.log((parseInt(data.new_status) === 1))
+        if (parseInt(data.new_status) === 1) {
+            console.log('Active GREEN')
+          $text.text('Active').css('color', 'green');
         } else {
-            $input.attr('type', 'password');
-            $(this).find('i').removeClass('icon-eye-slash').addClass('icon-eye');
+            console.log('Inactive RED')
+          $text.text('Inactive').css('color', 'red');
         }
+      } else {
+        // 🔄 Rollback visual
+        console.log('rollbackState')
+        rollbackState($text, originalStatus);
+      }
+    })
+    .catch(error => {
+      console.error('Error updating status:', error);
+    console.log('rollbackState - catch')
+      rollbackState($text, originalStatus);
     });
+  });
+
+  // 🔄 Función rollback (si falla el fetch)
+  function rollbackState($element, originalStatus) {
+    if (originalStatus === 1) {
+      $element.text('Active').css('color', 'green');
+    } else {
+      $element.text('Inactive').css('color', 'red');
+    }
+  }
+
+  // Código para mostrar/ocultar contraseñas
+  $('.toggle-secret').each(function() {
+    var target = $(this).data('target');
+    $('#' + target).attr('type', 'password');
+  });
+
+  $('.toggle-secret').on('click', function(e) {
+    e.preventDefault();
+    var target = $(this).data('target');
+    var $input = $('#' + target);
+    if ($input.attr('type') === 'password') {
+      $input.attr('type', 'text');
+      $(this).find('i').removeClass('icon-eye').addClass('icon-eye-slash');
+    } else {
+      $input.attr('type', 'password');
+      $(this).find('i').removeClass('icon-eye-slash').addClass('icon-eye');
+    }
+  });
 });

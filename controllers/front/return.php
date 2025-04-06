@@ -111,7 +111,7 @@ class Vc_prontopagaReturnModuleFrontController extends ModuleFrontController
         $secretKey = Configuration::get('VC_PRONTOPAGA_ACCOUNT_KEY');
         $sdk = new ProntoPaga($liveMode, $token, $secretKey);
 
-        $apiData = $sdk->getPaymentData($transaction['uid']);
+        $apiData = $sdk->apiGetPaymentData($transaction['uid']);
 
         if (!$apiData || !is_array($apiData)) {
             ProntoPagaLogger::error('verifyTransactionAndStatus: No se pudo obtener data del servicio', [

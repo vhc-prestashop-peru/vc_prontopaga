@@ -40,56 +40,60 @@ class ProntoPaga
         $this->token     = $token;
         $this->secretKey = $secretKey;
     }
-
-    private function getApiManager()
-    {
-        return new ProntoPagaApiManager($this->liveMode, $this->token);
-    }
-
-    public function getBalance()
-    {
-        $apiManager = $this->getApiManager();
-        return $apiManager->request('GET', 'api/balance');
-    }
-
-    public function getPaymentMethods()
-    {
-        $apiManager = $this->getApiManager();
-        return $apiManager->request('GET', 'api/payment/methods');
-    }
     
-    public function getPaymentData(string $uid)
+    /**
+     * Fetches available currencies from ProntoPaga and returns only those matching the store currencies.
+     *
+     * @param array $prestashopCurrencies List of PrestaShop currencies (array of arrays with 'iso_code' and 'id_currency' keys).
+     *
+     * @return array List of matched currencies, each with structure:
+     *               [
+     *                   'id_option' => (int) currency id,
+     *                   'name'      => string 'Currency name (ISO)',
+     *                   'val'       => (int) currency id
+     *               ]
+     */
+    public function getMatchedAvailableCurrencies(array $prestashopCurrencies)
     {
         $apiManager = $this->getApiManager();
-        $response = $apiManager->request('GET', 'api/payment/data/' . $uid);
+        $response = $apiManager->request('GET', 'api/balance');
     
-        if (!$response || !is_array($response)) {
-            ProntoPagaLogger::error('getPaymentData: Respuesta inválida o vacía', [
-                'uid' => $uid,
-                'response' => $response,
-            ]);
-            return false;
+        if (empty($response) || !isset($response['available']) || !is_array($response['available'])) {
+            return [];
         }
     
-        if (isset($response['error']) || isset($response['message'])) {
-            ProntoPagaLogger::error('getPaymentData: Error recibido desde el servicio', [
-                'uid' => $uid,
-                'response' => $response,
-            ]);
-            return false;
+        $availableCurrencyCodes = array_map('strtoupper', array_keys($response['available']));
+    
+        $matchedCurrencies = [];
+    
+        foreach ($prestashopCurrencies as $currency) {
+            if (isset($currency['iso_code'], $currency['id_currency'], $currency['name'])) {
+                if (in_array(strtoupper($currency['iso_code']), $availableCurrencyCodes)) {
+                    $matchedCurrencies[] = [
+                        'id_option' => (int) $currency['id_currency'],
+                        'name'      => $currency['name'] . ' (' . $currency['iso_code'] . ')',
+                        'val'       => (int) $currency['id_currency'],
+                    ];
+                }
+            }
         }
     
-        ProntoPagaLogger::info('getPaymentData: Respuesta exitosa', [
-            'uid' => $uid,
-            'response' => $response,
-        ]);
-    
-        return $response;
+        return $matchedCurrencies;
     }
-
+    
+    /**
+     * Synchronizes ProntoPaga payment methods with the database.
+     *
+     * - Fetches the available payment methods from the ProntoPaga API.
+     * - Truncates the `vc_prontopaga_methods` table.
+     * - Inserts the new payment methods into the database.
+     * - Logs the result of the operation (success or failure).
+     *
+     * @return bool True on success, False on failure.
+     */
     public function syncPaymentMethodsToDB()
     {
-        $methods = $this->getPaymentMethods();
+        $methods = $this->apiGetPaymentMethods();
 
         if (!$methods || !is_array($methods)) {
             ProntoPagaLogger::error('Failed to fetch payment methods', ['response' => $methods]);
@@ -113,6 +117,20 @@ class ProntoPaga
         return true;
     }
 
+    /**
+     * Creates a new payment request in ProntoPaga for a given cart and payment method.
+     *
+     * - Builds the payment payload with customer, cart, and order details.
+     * - Generates secure URLs for confirmation, rejection, and final return.
+     * - Signs the payment request for security.
+     * - Sends the payment creation request to ProntoPaga API.
+     * - Logs success or failure and saves the payment response in the database.
+     *
+     * @param Cart $cart The current customer's cart.
+     * @param string $paymentMethod The payment method identifier (e.g., 'pe_card_payment').
+     *
+     * @return string|false The URL for the payment page if successful, false otherwise.
+     */
     public function createNewPayment(Cart $cart, string $paymentMethod)
     {
         if (empty($paymentMethod)) {
@@ -167,6 +185,46 @@ class ProntoPaga
         ProntoPagaLogger::info('createNewPayment success', ['response' => $response]);
         $this->savePaymentResponseToDb($data, $cart, $paymentMethod, $response);
         return $response['urlPay'];
+    }
+
+    private function getApiManager()
+    {
+        return new ProntoPagaApiManager($this->liveMode, $this->token);
+    }
+    
+    private function apiGetPaymentMethods()
+    {
+        $apiManager = $this->getApiManager();
+        return $apiManager->request('GET', 'api/payment/methods');
+    }
+    
+    public function apiGetPaymentData(string $uid)
+    {
+        $apiManager = $this->getApiManager();
+        $response = $apiManager->request('GET', 'api/payment/data/' . $uid);
+    
+        if (!$response || !is_array($response)) {
+            ProntoPagaLogger::error('apiGetPaymentData: Respuesta inválida o vacía', [
+                'uid' => $uid,
+                'response' => $response,
+            ]);
+            return false;
+        }
+    
+        if (isset($response['error']) || isset($response['message'])) {
+            ProntoPagaLogger::error('apiGetPaymentData: Error recibido desde el servicio', [
+                'uid' => $uid,
+                'response' => $response,
+            ]);
+            return false;
+        }
+    
+        ProntoPagaLogger::info('apiGetPaymentData: Respuesta exitosa', [
+            'uid' => $uid,
+            'response' => $response,
+        ]);
+    
+        return $response;
     }
 
     private function generateSignature(array $data, $concatString = '')

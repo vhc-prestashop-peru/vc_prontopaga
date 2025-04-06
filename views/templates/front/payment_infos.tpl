@@ -42,7 +42,6 @@
             {/foreach}
         </div>
     </div>
-    <script src="{$module_dir}views/js/prontopaga.js"></script>
 {else}
     <p class="alert alert-danger">{l s='No available payment methods. Please contact support.' mod='vc_prontopaga'}</p>
 {/if}
